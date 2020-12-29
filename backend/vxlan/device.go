@@ -88,7 +88,7 @@ func ensureLink(vxlan *netlink.Vxlan) (*netlink.Vxlan, error) {
 		if err != nil {
 			return nil, err
 		}
-
+		log.Infof("existing vxlan: %v", existing)
 		incompat := vxlanLinksIncompat(vxlan, existing)
 		if incompat == "" {
 			return existing.(*netlink.Vxlan), nil
@@ -260,6 +260,8 @@ func (dev *vxlanDevice) processNeighMsg(msg syscall.NetlinkMessage, misses chan 
 }
 
 func vxlanLinksIncompat(l1, l2 netlink.Link) string {
+	log.Infof("Link Config: \n add: %v \n existing: %v", l1, l2)
+
 	if l1.Type() != l2.Type() {
 		return fmt.Sprintf("link type: %v vs %v", l1.Type(), l2.Type())
 	}
@@ -267,30 +269,37 @@ func vxlanLinksIncompat(l1, l2 netlink.Link) string {
 	v1 := l1.(*netlink.Vxlan)
 	v2 := l2.(*netlink.Vxlan)
 
+	log.Infof("vni:  add: %d   existing: %d", v1.VxlanId, v2.VxlanId)
 	if v1.VxlanId != v2.VxlanId {
 		return fmt.Sprintf("vni: %v vs %v", v1.VxlanId, v2.VxlanId)
 	}
 
+	log.Infof("VtepDevIndex:  add: %d   existing: %d", v1.VtepDevIndex, v2.VtepDevIndex)
 	if v1.VtepDevIndex > 0 && v2.VtepDevIndex > 0 && v1.VtepDevIndex != v2.VtepDevIndex {
 		return fmt.Sprintf("vtep (external) interface: %v vs %v", v1.VtepDevIndex, v2.VtepDevIndex)
 	}
 
+	log.Infof("SrcAddr:  add: %v   existing: %v", v1.SrcAddr, v2.SrcAddr)
 	if len(v1.SrcAddr) > 0 && len(v2.SrcAddr) > 0 && !v1.SrcAddr.Equal(v2.SrcAddr) {
 		return fmt.Sprintf("vtep (external) IP: %v vs %v", v1.SrcAddr, v2.SrcAddr)
 	}
 
+	log.Infof("Group:  add: %v   existing: %v", v1.Group, v2.Group)
 	if len(v1.Group) > 0 && len(v2.Group) > 0 && !v1.Group.Equal(v2.Group) {
 		return fmt.Sprintf("group address: %v vs %v", v1.Group, v2.Group)
 	}
 
+	log.Infof("L2miss:  add: %t   existing: %t", v1.L2miss, v2.L2miss)
 	if v1.L2miss != v2.L2miss {
 		return fmt.Sprintf("l2miss: %v vs %v", v1.L2miss, v2.L2miss)
 	}
 
+	log.Infof("Port:  add: %d   existing: %d", v1.Port, v2.Port)
 	if v1.Port > 0 && v2.Port > 0 && v1.Port != v2.Port {
 		return fmt.Sprintf("port: %v vs %v", v1.Port, v2.Port)
 	}
 
+	log.Infof("GBP:  add: %t   existing: %t", v1.GBP, v2.GBP)
 	if v1.GBP != v2.GBP {
 		return fmt.Sprintf("gbp: %v vs %v", v1.GBP, v2.GBP)
 	}
