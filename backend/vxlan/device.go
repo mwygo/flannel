@@ -15,6 +15,7 @@
 package vxlan
 
 import (
+	"encoding/json"
 	"fmt"
 	"net"
 	"os"
@@ -81,6 +82,13 @@ func newVXLANDevice(devAttrs *vxlanDeviceAttrs) (*vxlanDevice, error) {
 }
 
 func ensureLink(vxlan *netlink.Vxlan) (*netlink.Vxlan, error) {
+
+	if rawJson, err := json.Marshal(vxlan); err != nil {
+		return nil, err
+	} else {
+		log.Infof("ensureLink input: %s", string(rawJson))
+	}
+
 	err := netlink.LinkAdd(vxlan)
 	if err == syscall.EEXIST {
 		// it's ok if the device already exists as long as config is similar
@@ -88,8 +96,18 @@ func ensureLink(vxlan *netlink.Vxlan) (*netlink.Vxlan, error) {
 		if err != nil {
 			return nil, err
 		}
-		log.Infof("existing vxlan: %v", existing)
+		if existJson, err := json.Marshal(existing); err != nil {
+			return nil, err
+		} else {
+			log.Infof("netlink.LinkByName(vxlan.Name：%s): %s", vxlan.Name, string(existJson))
+		}
+		if addJson, err := json.Marshal(vxlan); err != nil {
+			return nil, err
+		} else {
+			log.Infof("netlink.LinkAdd(vxlan): %s", string(addJson))
+		}
 		incompat := vxlanLinksIncompat(vxlan, existing)
+		log.Infof("vxlanLinksIncompat(vxlan, existing): %s", incompat)
 		if incompat == "" {
 			return existing.(*netlink.Vxlan), nil
 		}
@@ -106,6 +124,12 @@ func ensureLink(vxlan *netlink.Vxlan) (*netlink.Vxlan, error) {
 		}
 	} else if err != nil {
 		return nil, err
+	} else {
+		if addJson, err := json.Marshal(vxlan); err != nil {
+			return nil, err
+		} else {
+			log.Infof("netlink.LinkAdd(vxlan): %s", string(addJson))
+		}
 	}
 
 	ifindex := vxlan.Index
@@ -260,8 +284,7 @@ func (dev *vxlanDevice) processNeighMsg(msg syscall.NetlinkMessage, misses chan 
 }
 
 func vxlanLinksIncompat(l1, l2 netlink.Link) string {
-	log.Infof("Link Config: \n add: %v \n existing: %v", l1, l2)
-
+	log.Infof("Type:  add: %s  existing: %s", l1.Type(), l2.Type())
 	if l1.Type() != l2.Type() {
 		return fmt.Sprintf("link type: %v vs %v", l1.Type(), l2.Type())
 	}
